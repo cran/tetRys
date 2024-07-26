@@ -334,7 +334,7 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
     {
       for (y in 1:4)
       {
-        if (ActiveTetro$Shapes[[ActiveTetro$Orientation]][y, x]) if (ActiveTetro$Y + y - 1 <= FIELDHEIGHT)
+        if (ActiveTetro$Shapes[[ActiveTetro$Orientation]][y, x]) if (ActiveTetro$Y + y - 1 <= FIELDHEIGHT && ActiveTetro$Y + y - 1 > 0)
         {
           TempField[ActiveTetro$Y + y - 1, ActiveTetro$X + x - 1] <- ActiveTetro$Color
         }
@@ -430,8 +430,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
       {
         if (TestTetro$Shapes[[TestTetro$Orientation]][y, x])
         {
-          if (TestTetro$X + x - 1 > FIELDWIDTH) return(TRUE)
-          if (TestTetro$Y + y - 1 > FIELDHEIGHT) return(TRUE)
+          if (TestTetro$X + x - 1 > FIELDWIDTH || TestTetro$X + x - 1 < 1) return(TRUE)
+          if (TestTetro$Y + y - 1 > FIELDHEIGHT || TestTetro$Y + y - 1 < 1) return(TRUE)
           if (Field[TestTetro$Y + y - 1, TestTetro$X + x - 1] != BLACK) return(TRUE)
         }
       }
@@ -495,6 +495,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
       if (!Pause) UpdateFrame()
     }
 
+    if (GameOver) break
+
     if (MusicPlay)
     {
       if (difftime(Sys.time(), MusicStarttime, units = "secs") * 1000 >= MusicDuration)
@@ -521,6 +523,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
         assign("Pause", !Pause, MyEnv)
       }
 
+      if (Pause) next
+
       if (tetRysEnvir$KeyCode == "m")
       {
         if (MusicPlay)
@@ -531,8 +535,6 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
           StartMusic()
         }
       }
-
-      if (Pause) next
 
       if (tetRysEnvir$KeyCode == "Escape")
       {
@@ -584,6 +586,13 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
       if (tetRysEnvir$KeyCode == "Down" || tetRysEnvir$KeyCode == "s")
       {
+        HandleSettle()
+        if (GameOver)
+        {
+          Exit()
+          break;
+        }
+
         TestTetro <- ActiveTetro
         TestTetro$Y <- TestTetro$Y + 1
         if (!Blocked(TestTetro)) UpdateFrame()
@@ -591,8 +600,6 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
       tetRysEnvir$KeyCode <- NA
     }
-
-    if (GameOver) break
   }
 
   return(invisible(0))
