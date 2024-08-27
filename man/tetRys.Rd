@@ -8,7 +8,7 @@ Opens a plot window device and starts a game of tetRys in it. Steer the tetromin
 }
 
 \usage{
-tetRys(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
+tetRys(FadeEffect = TRUE, Startlevel = 1, Music = FALSE, Sound = FALSE)
 }
 
 \arguments{
@@ -20,6 +20,9 @@ tetRys(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 	}
 	\item{Music}{
 		Choose whether to play music or not (you can also turn music on/off during play by using the 'm' key).
+	}
+	\item{Sound}{
+		Choose whether to play sound effects or not (ou can also turn sound effects on/off during play by using the 'e' key).
 	}
 }
 

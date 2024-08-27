@@ -1,6 +1,6 @@
-utils::globalVariables(c("Wave"))
+utils::globalVariables(c("tetRysSound"))
 
-tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
+tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE, Sound = FALSE)
 {
   Exit <- function()
   {
@@ -12,6 +12,38 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
   FIELDWIDTH <- 10
   FIELDHEIGHT <- 18
+
+  a <- tuneR::readMP3(paste(tetRysSound$Path, "/tetRys.MP3", sep = ""))
+  Wave <- rbind(a@left, a@right)
+  class(Wave) = "audioSample"
+  attr(Wave, "rate") = a@samp.rate
+  attr(Wave, "bits") = a@bit
+
+  a <- tuneR::readMP3(paste(tetRysSound$Path, "/Clear.MP3", sep = ""))
+  CLEAR <- rbind(a@left, a@right)
+  class(CLEAR) = "audioSample"
+  attr(CLEAR, "rate") = a@samp.rate
+  attr(CLEAR, "bits") = a@bit
+
+  a <- tuneR::readMP3(paste(tetRysSound$Path, "/Drop.MP3", sep = ""))
+  DROP <- rbind(a@left, a@right)
+  class(DROP) = "audioSample"
+  attr(DROP, "rate") = a@samp.rate
+  attr(DROP, "bits") = a@bit
+
+  a <- tuneR::readMP3(paste(tetRysSound$Path, "/Tick.MP3", sep = ""))
+  TICK <- rbind(a@left, a@right)
+  class(TICK) = "audioSample"
+  attr(TICK, "rate") = a@samp.rate
+  attr(TICK, "bits") = a@bit
+
+  a <- tuneR::readMP3(paste(tetRysSound$Path, "/Turn.MP3", sep = ""))
+  TURN <- rbind(a@left, a@right)
+  class(TURN) = "audioSample"
+  attr(TURN, "rate") = a@samp.rate
+  attr(TURN, "bits") = a@bit
+
+  rm(a)
 
   CYAN <- rgb(red = 0, green = 1, blue = 1)
   RED <- rgb(red = 1, green = 0, blue = 0)
@@ -35,12 +67,14 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
   Score <- 0
   ClearedLines <- 0
+  TotalClearedLines <- 0
   Level <- Startlevel
   Interval <- 1000 * (0.9 ^ (Level - 1))
   GameOver <- FALSE
   Pause <- FALSE
 
   MusicPlay <- Music
+  SoundPlay <- Sound
   MusicDuration <- 38590
   MusicStarttime <- NULL
   MusicControl <- NULL
@@ -209,13 +243,22 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
     Score <<- 0
     ClearedLines <<- 0
+    TotalClearedLines <<- 0
+    if (Startlevel < 1) Startlevel <- 1
     Level <<- Startlevel
     Interval <<- 1000 * (0.9 ^ (Level - 1))
+  }
+
+  Message <- function(MyText)
+  {
+    message(MyText)
+    flush.console()
   }
 
   StartMusic <- function()
   {
     WaveControl <- audio::play(Wave)
+    Message("Music started.")
 
     assign("MusicPlay", TRUE, MyEnv)
     assign("MusicControl", WaveControl, MyEnv)
@@ -224,8 +267,22 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
   StopMusic <- function()
   {
-    if (MusicPlay) audio::pause(MusicControl)
+    if (!MusicPlay) return()
+
+    audio::pause(MusicControl)
+    Message("Music stopped.")
+
     assign("MusicPlay", FALSE, MyEnv)
+  }
+
+  PlaySound <- function(SoundObj)
+  {
+    if (SoundPlay)
+    {
+      if ("Void" %in% names(MyEnv)) audio::pause(MyEnv$Void)
+      Void <- audio::play(SoundObj)
+      assign("Void", Void, MyEnv)
+    }
   }
 
   FadeOut <- function()
@@ -245,6 +302,25 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
     BRed <- strtoi(paste("0x", substr(BigScreen, 2, 3), sep = ""))
     BGreen <- strtoi(paste("0x", substr(BigScreen, 4, 5), sep = ""))
     BBlue <- strtoi(paste("0x", substr(BigScreen, 6, 7), sep = ""))
+
+    StartTime <- Sys.time()
+    Noise <- matrix(ncol = Resolution, nrow = Resolution, data = runif(n = Resolution * Resolution, min = 0, max = 255))
+    TargetRed <- (0 * Noise) + ((1 - 0) * BRed) #Nonsense, but here to acquire a valid time measure.
+    TargetGreen <- (0 * Noise) + ((1 - 0) * BGreen)
+    TargetBlue <- (0 * Noise) + ((1 - 0) * BBlue)
+    Target <- matrix(ncol = Resolution, nrow = Resolution, data = rgb(TargetRed, TargetGreen, TargetBlue, maxColorValue = 255))
+    grid::grid.newpage()
+    grid::grid.raster(Target, interpolate = FALSE)
+    sElapsed <- as.vector(difftime(Sys.time(), StartTime, units = "secs"))
+
+    NoiseFrame <- 44100 * sElapsed
+    BrownNoise <- cumsum(rnorm(n = 100 * NoiseFrame))
+    if (min(BrownNoise)[1] < 0) BrownNoise <- BrownNoise + abs(min(BrownNoise))
+    BrownNoise <- BrownNoise / max(BrownNoise)
+    BrownNoise <- BrownNoise * 2
+    BrownNoise <- BrownNoise - 1
+    BrownNoise <- BrownNoise * sin(seq(from = 0, to = pi, length.out = length(BrownNoise)))
+    PlaySound(BrownNoise)
 
     Sin <- sin(seq(from = 0, to = 0.5 * pi, length.out = 50))
     for (MySin in Sin)
@@ -293,6 +369,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
   {
     if (CheckSettle())
     {
+      PlaySound(DROP)
+
       AddTetroToField()
       HandleRowDrops()
 
@@ -303,8 +381,7 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
         TempLevel <- Level + 1
         assign("Level", TempLevel, MyEnv)
-        message(paste("Level: ", Level, sep = ""))
-        flush.console()
+        Message(paste("Level: ", Level, sep = ""))
 
         TempInterval <- 1000 * (0.9 ^ (Level - 1))
         assign("Interval", TempInterval, MyEnv)
@@ -316,8 +393,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
       if (CheckSettle())
       {
-        message("Game over!")
-		    message(paste("Cleared lines: ", ((Level - 1) * 10) + ClearedLines, ".", sep = ""))
+        Message("Game over!")
+		    Message(paste("Cleared lines: ", TotalClearedLines, ".", sep = ""))
         assign("GameOver", TRUE, MyEnv)
         if (FadeEffect) FadeOut()
         Exit()
@@ -379,6 +456,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
     if (ClearedNow)
     {
+      PlaySound(CLEAR)
+
       TempScore <- Score
       if (ClearedNow == 1) TempScore <- TempScore + 40
       if (ClearedNow == 2) TempScore <- TempScore + 100
@@ -386,11 +465,11 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
       if (ClearedNow == 4) TempScore <- TempScore + 1200
       assign("Score", TempScore, MyEnv)
 
-      message(paste("Score: ", Score, sep = ""))
-      flush.console()
+      Message(paste("Score: ", Score, sep = ""))
 
-      TempClearedLines <- ClearedLines + ClearedNow
-      assign("ClearedLines", TempClearedLines, MyEnv)
+      TempClearedLines <- TotalClearedLines + ClearedNow
+      assign("ClearedLines", ClearedLines + ClearedNow, MyEnv)
+      assign("TotalClearedLines", TempClearedLines, MyEnv)
     }
 
     assign("Field", TempField, MyEnv)
@@ -467,12 +546,12 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
     }
   }
 
-  message("Controls: Arrow keys. Press 'Pause' to pause and 'm' to toggle music.")
-  message("Hit Esc to end game.")
-  flush.console()
+  Message("Controls: Arrow keys. Press 'Pause' to pause, 'm' to toggle music,")
+  Message("and 'e' for sound effects. Hit Esc to end game.")
 
   InitTetrominos()
   if (MusicPlay) StartMusic()
+  if (SoundPlay) Message("Sound started.")
 
   if (.Device == "null device") dev.new()
 
@@ -513,13 +592,12 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
       {
         if (Pause)
         {
-          message("Pause released.")
+          Message("Pause released.")
         } else
         {
-          message("Game paused.")
+          Message("Game paused.")
           tetRysEnvir$KeyCode <- NA
         }
-        flush.console()
         assign("Pause", !Pause, MyEnv)
       }
 
@@ -536,10 +614,16 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
         }
       }
 
+      if (tetRysEnvir$KeyCode == "e")
+      {
+        SoundPlay <- !SoundPlay
+
+        if (SoundPlay) Message("Sound started.") else Message("Sound stopped.")
+      }
+
       if (tetRysEnvir$KeyCode == "Escape")
       {
-        message("Game terminated.")
-        flush.console()
+        Message("Game terminated.")
         Exit()
         break
       }
@@ -553,6 +637,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
           if (!Blocked(TestTetro))
           {
+            PlaySound(TICK)
+
             assign("ActiveTetro", TestTetro, MyEnv)
             Draw()
           }
@@ -566,6 +652,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
         if (!Blocked(TestTetro))
         {
+          PlaySound(TICK)
+
           assign("ActiveTetro", TestTetro, MyEnv)
           Draw()
         }
@@ -579,6 +667,8 @@ tetRys <- function(FadeEffect = TRUE, Startlevel = 1, Music = FALSE)
 
         if (!Blocked(TestTetro))
         {
+          PlaySound(TURN)
+
           assign("ActiveTetro", TestTetro, MyEnv)
           Draw()
         }

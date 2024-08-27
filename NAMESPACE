@@ -1,4 +1,4 @@
 export(tetRys)
 importFrom("utils", "flush.console", "packageVersion")
 importFrom("grDevices", "dev.new", "rgb")
-importFrom("stats", "runif")
+importFrom("stats", "runif", "rnorm")
